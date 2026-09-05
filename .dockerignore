@@ -1,0 +1,11 @@
+.git
+.venv
+__pycache__/
+**/__pycache__/
+*.pyc
+node_modules/
+dashboard/node_modules/
+dashboard/dist/
+debug_frames/
+*.log
+.env

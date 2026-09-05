@@ -1,0 +1,48 @@
+# Tasks
+
+- `[x]` Configure MQTT Broker & Docker Compose
+  - `[x]` Create `infrastructure/mosquitto/config/mosquitto.conf`
+  - `[x]` Create root `docker-compose.yml`
+  - `[x]` Create root `requirements.txt`
+- `[x]` Create Edge Service
+  - `[x]` Create `edge/main.py`
+  - `[x]` Create `edge/Dockerfile`
+  - `[x]` Create `edge/README.md`
+- `[x]` Create Fog Service
+  - `[x]` Create `fog/main.py`
+  - `[x]` Create `fog/face_search.py`
+  - `[x]` Create `fog/Dockerfile`
+  - `[x]` Create `fog/README.md`
+- `[x]` Create Central API Service
+  - `[x]` Create `central/main.py`
+  - `[x]` Create `central/database.py`
+  - `[x]` Create `central/Dockerfile`
+  - `[x]` Create `central/README.md`
+- `[x]` Create Dashboard Frontend
+  - `[x]` Resolve broken location markers and use configured coordinates
+  - `[x]` Replace external flaticon URLs with custom inline SVGs using `L.DivIcon` in `App.jsx` and `LiveMap.jsx`
+  - `[x]` Integrate `src/config/location.js` coordinates as the primary source of truth in `App.jsx`
+  - `[x]` Integrate a real-time `watchPosition` GPS hook to continuously track high-accuracy device location
+  - `[x]` Implement a visual GPS Overlay Card on the map showing active GPS status, coordinates, and instructions to resolve permissions
+  - `[x]` Remove all hardcoded San Francisco coordinates and replace with user config values
+  - `[x]` Make the operation center/user location marker draggable to allow manual GPS correction and alignment/edge_node.py` implementation
+  - `[x]` Add NVIDIA Jetson TensorRT execution guide comments
+  - `[x]` Verify execution against local infrastructure
+- `[x]` Create Facial Recognition (FRS) Engine (`frs_engine.py`)
+  - `[x]` Write `fog/frs_engine.py` implementation
+  - `[x]` Implement watchlist enrollment and vector search functions
+  - `[x]` Integrate InsightFace app initialization and base64 crop extractor
+  - `[x]` Verify local execution of the script
+- `[x]` Create Central Escalation Server (`central/main.py` overwrite)
+  - `[x]` Write complete `central/main.py` implementation
+  - `[x]` Configure SQLAlchemy PostgreSQL alert logging table schema
+  - `[x]` Build background threads for MQTT subscription and Redis keyspace expired subscription
+  - `[x]` Add REST API endpoints for fetching alerts and acknowledging alert escalations
+  - `[x]` Verify local execution of the script
+- `[x]` Create Tailwind React Dashboard & Fog Ingestion Server
+  - `[x]` Modify `fog/frs_engine.py` to expose FastAPI HTTP server on port 8001
+  - `[x]` Install tailwindcss, postcss, autoprefixer, mapbox-gl dependencies in `dashboard/package.json`
+  - `[x]` Create `dashboard/tailwind.config.js` and `dashboard/postcss.config.js`
+  - `[x]` Overwrite `dashboard/src/index.css` with Tailwind directives and custom animation utilities
+  - `[x]` Overwrite `dashboard/src/App.jsx` with full responsive Tailwind UI, Mapbox GL placeholder, watchlist form, alert feed, and WebSocket integrations
+  - `[x]` Verify local syntax and compilation

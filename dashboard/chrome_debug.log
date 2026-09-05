@@ -1,0 +1,2 @@
+[0827/110909.913499:ERROR:third_party/crashpad/crashpad/util/file/file_io.cc:159] write: Broken pipe (32)
+[0827/110909.914214:WARNING:third_party/crashpad/crashpad/util/mach/child_port_handshake.cc:98] no client check-in

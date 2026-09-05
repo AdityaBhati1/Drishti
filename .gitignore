@@ -1,0 +1,11 @@
+.env
+*.db
+*.sqlite
+*.sqlite3
+snapshots/
+debug_frames/
+scratch/
+logs/
+node_modules/
+dashboard/dist/
+__pycache__/

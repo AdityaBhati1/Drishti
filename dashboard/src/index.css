@@ -1,0 +1,105 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slide-left {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slideLeft {
+  animation: slide-left 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fade-in 0.15s ease-out forwards;
+}
+
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.2);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.radar-glow {
+  animation: radar-pulse 2s infinite linear;
+}
+
+/* Fix Leaflet map tile rendering, tile alignment, and marker shadow issues */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  background-color: #020617 !important;
+  /* Tailwind slate-950 dark theme match */
+}
+
+/* Fix missing background tiles grid offset */
+.leaflet-tile-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* Ensure map controls (zoom buttons) layer beneath modal dialogues */
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 10 !important;
+}
+
+/* Dark mode aesthetic tweaks for standard Leaflet Popups */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background-color: #0f172a !important;
+  /* Tailwind slate-900 background */
+  color: #f8fafc !important;
+  border: 1px solid #1e293b;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+.leaflet-popup-content {
+  margin: 10px 14px !important;
+  line-height: 1.4 !important;
+}
+
+/* Invert colors and adjust brightness/contrast for a dark mode map effect */
+.leaflet-tile {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}

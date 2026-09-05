@@ -1,0 +1,250 @@
+services:
+  # MQTT Broker (Edge-to-Fog communication)
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto-mqtt
+    ports:
+      - "1883:1883"
+      - "9083:9001"
+    volumes:
+      - ./infrastructure/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./infrastructure/mosquitto/config/passwd:/mosquitto/config/passwd
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    environment:
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+    entrypoint: >
+      sh -c '
+        if [ -n "$$MQTT_USERNAME" ] && [ -n "$$MQTT_PASSWORD" ]; then
+          mosquitto_passwd -b -c /mosquitto/config/passwd "$$MQTT_USERNAME" "$$MQTT_PASSWORD"
+        fi
+        exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
+      '
+    restart: unless-stopped
+
+  # Redis (Alert escalation TTL tracking)
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # PostgreSQL with PostGIS (Spatio-temporal alert logging)
+  postgres:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: postgis-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cctv_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: cctv_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  central:
+    image: cctv-main-central:latest
+    build:
+      context: .
+      dockerfile: central/Dockerfile
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cctv_admin}:${POSTGRES_PASSWORD}@postgres:5432/cctv_db
+      REDIS_HOST: redis
+      MILVUS_HOST: milvus
+      MQTT_BROKER: mqtt
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      CENTRAL_API_KEY: ${CENTRAL_API_KEY:-}
+      SITE_LAT: ${SITE_LAT:-28.6139}
+      SITE_LNG: ${SITE_LNG:-77.2090}
+      SITE_ADDRESS: ${SITE_ADDRESS:-Unconfigured site}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001}
+      SNAPSHOTS_DIR: /app/snapshots
+      EVIDENCE_TOKEN: ${EVIDENCE_TOKEN:-}
+      CONFIG_YAML_PATH: /app/config.yaml
+      CAMERAS_YAML_PATH: /app/cameras.yaml
+    volumes:
+      - ./snapshots:/app/snapshots
+      - ./cameras.yaml:/app/cameras.yaml
+      - ./config.yaml:/app/config.yaml
+      - ./central:/app/central
+      - ./central/main.py:/app/main.py
+      - ./shared:/app/shared
+      - ./ingestion:/app/ingestion
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+      - mqtt
+    restart: unless-stopped
+
+  dashboard:
+    image: cctv-main-dashboard:latest
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+      args:
+        VITE_CENTRAL_API_KEY: ${CENTRAL_API_KEY:-}
+        VITE_CENTRAL_API_URL: ${VITE_CENTRAL_API_URL:-}
+        VITE_CENTRAL_WS_URL: ${VITE_CENTRAL_WS_URL:-}
+    environment:
+      VITE_CENTRAL_API_KEY: ${CENTRAL_API_KEY:-}
+      VITE_CENTRAL_API_URL: ${VITE_CENTRAL_API_URL:-}
+      VITE_CENTRAL_WS_URL: ${VITE_CENTRAL_WS_URL:-}
+    ports:
+      - "3000:80"
+      - "3001:80"
+    volumes:
+      - ./dashboard/dist:/usr/share/nginx/html
+    depends_on:
+      - central
+    restart: unless-stopped
+
+  edge:
+    image: cctv-main-edge:latest
+    profiles: ["pipeline"]
+    build:
+      context: .
+      dockerfile: edge/Dockerfile
+    environment:
+      PYTHONUNBUFFERED: "1"
+      MQTT_BROKER: mqtt
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_EDGE_TOPIC: surveillance/edge/events.v1
+      CAMERA_ID: ${CAMERA_ID:-all}
+      RTSP_URL: ${RTSP_URL:-}
+      YOLO_MODEL_PATH: /app/edge/yolov8n.pt
+      CONFIG_YAML_PATH: /app/config.yaml
+      CAMERAS_YAML_PATH: /app/cameras.yaml
+      SNAPSHOTS_DIR: /app/snapshots
+      EDGE_EVIDENCE_PORT: 8001
+      EVIDENCE_TOKEN: ${EVIDENCE_TOKEN:-}
+    volumes:
+      - ./snapshots:/app/snapshots
+      - ./cameras.yaml:/app/cameras.yaml
+      - ./config.yaml:/app/config.yaml
+      - ./edge:/app/edge
+      - ./edge/main.py:/app/main.py
+      - ./shared:/app/shared
+      - ./ingestion:/app/ingestion
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mqtt
+    restart: unless-stopped
+
+  fog:
+    image: cctv-main-fog:latest
+    profiles: ["pipeline"]
+    build:
+      context: .
+      dockerfile: fog/Dockerfile
+    environment:
+      PYTHONUNBUFFERED: "1"
+      MQTT_BROKER: mqtt
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_EDGE_TOPIC: surveillance/edge/events.v1
+      MQTT_FOG_ALERT_TOPIC: surveillance/fog/alerts.v1
+      MILVUS_HOST: milvus
+      CENTRAL_API_KEY: ${CENTRAL_API_KEY:-}
+      CONFIG_YAML_PATH: /app/config.yaml
+      CAMERAS_YAML_PATH: /app/cameras.yaml
+      SITE_LAT: ${SITE_LAT:-28.6139}
+      SITE_LNG: ${SITE_LNG:-77.2090}
+    volumes:
+      - ./cameras.yaml:/app/cameras.yaml
+      - ./config.yaml:/app/config.yaml
+      - ./fog:/app/fog
+      - ./fog/main.py:/app/main.py
+      - ./shared:/app/shared
+    depends_on:
+      - mqtt
+      - milvus
+      - central
+    restart: unless-stopped
+
+  experimental-ai:
+    profiles: ["experimental-ai"]
+    build:
+      context: .
+      dockerfile: cctv-backend/Dockerfile
+    environment:
+      SAVE_DEBUG_FRAMES: "false"
+    ports:
+      - "8002:8002"
+
+  # Milvus Vector Database Dependencies
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: milvus-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_RETENTION=0
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls=http://0.0.0.0:2379 --data-dir /etcd
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: milvus-minio
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    command: minio server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    restart: unless-stopped
+
+  # Milvus Standalone Vector DB
+  milvus:
+    image: milvusdb/milvus:v2.5.4
+    container_name: milvus-standalone
+    command: ["milvus", "run", standalone]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    ports:
+      - "19530:19530"
+    depends_on:
+      - etcd
+      - minio
+    volumes:
+      - milvus_data:/var/lib/milvus
+    restart: unless-stopped
+
+  # Attu (Milvus Web GUI for Facial Recognition System management)
+  attu:
+    image: zilliz/attu:v2.5.10
+    container_name: milvus-attu
+    environment:
+      - MILVUS_URL=milvus:19530
+    ports:
+      - "8020:3000"
+    depends_on:
+      - milvus
+    restart: unless-stopped
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:
+  redis_data:
+  postgres_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
