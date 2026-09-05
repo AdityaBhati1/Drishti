@@ -487,9 +487,7 @@ export default function App() {
             }
           }
         });
-        if (Object.keys(newConnected).length > 0) {
-          setConnectedCameras(prev => ({ ...prev, ...newConnected }));
-        }
+        setConnectedCameras(newConnected);
       }
     } catch (err) {
       console.warn("Failed to sync cameras from central:", err);
@@ -558,49 +556,6 @@ export default function App() {
       modules: cam.modules
     });
   });
-
-  // Default fallbacks for CAM_02 and CAM_03 if not yet loaded from backend
-  if (!handledIds.has('CAM_02')) {
-    const cam2Active = connectedCameras['Camera Slot 2'] || connectedCameras['CAM_02'];
-    otherCameras.push({
-      id: 'CAM_02',
-      name: cam2Active?.name || 'UPTOWN_NODE',
-      status: 'active',
-      lat: laptopLocation ? laptopLocation[0] + 0.005 : CURRENT_NODE_LOCATION.lat + 0.005,
-      lng: laptopLocation ? laptopLocation[1] + 0.005 : CURRENT_NODE_LOCATION.lng + 0.005,
-      address: 'Fixed Node Slot 2',
-      location: {
-        lat: laptopLocation ? laptopLocation[0] + 0.005 : CURRENT_NODE_LOCATION.lat + 0.005,
-        lng: laptopLocation ? laptopLocation[1] + 0.005 : CURRENT_NODE_LOCATION.lng + 0.005,
-        address: 'Fixed Node Slot 2'
-      },
-      rtsp_url: cam2Active?.streamUrl || null,
-      streamUrl: cam2Active ? `${CENTRAL_API_BASE}/video_feed_slot/${encodeURIComponent('Camera Slot 2')}${authQuery}` : null,
-      isLiveStream: !!cam2Active
-    });
-    handledIds.add('CAM_02');
-  }
-
-  if (!handledIds.has('CAM_03')) {
-    const cam3Active = connectedCameras['Camera Slot 3'] || connectedCameras['CAM_03'];
-    otherCameras.push({
-      id: 'CAM_03',
-      name: cam3Active?.name || 'PERIMETER_NORTH',
-      status: 'active',
-      lat: laptopLocation ? laptopLocation[0] - 0.005 : CURRENT_NODE_LOCATION.lat - 0.005,
-      lng: laptopLocation ? laptopLocation[1] + 0.008 : CURRENT_NODE_LOCATION.lng + 0.008,
-      address: 'Perimeter Gate Slot 3',
-      location: {
-        lat: laptopLocation ? laptopLocation[0] - 0.005 : CURRENT_NODE_LOCATION.lat - 0.005,
-        lng: laptopLocation ? laptopLocation[1] + 0.008 : CURRENT_NODE_LOCATION.lng + 0.008,
-        address: 'Perimeter Gate Slot 3'
-      },
-      rtsp_url: cam3Active?.streamUrl || null,
-      streamUrl: cam3Active ? `${CENTRAL_API_BASE}/video_feed_slot/${encodeURIComponent('Camera Slot 3')}${authQuery}` : null,
-      isLiveStream: !!cam3Active
-    });
-    handledIds.add('CAM_03');
-  }
 
   const cameras = [localLaptopCamera, ...otherCameras];
   const activeCameras = cameras.filter(c => c.status !== 'disabled' && c.status !== 'inactive');
@@ -1067,7 +1022,7 @@ export default function App() {
             name: modalForm.cameraId
           }
         }));
-        fetchConfiguredCameras();
+        await fetchConfiguredCameras();
         setIsConfigOpen(false);
         setToastMessage("Camera connected & streaming successfully!");
         setTimeout(() => setToastMessage(null), 4000);

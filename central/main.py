@@ -37,6 +37,7 @@ from ingestion.stream import RTSPConnector
 from ingestion.config import (
     append_camera_config,
     update_camera_config,
+    upsert_camera_entry,
     set_camera_status,
     delete_camera_config,
     load_config,
@@ -889,6 +890,20 @@ class UpdateCameraRequest(BaseModel):
     lng: Optional[Union[float, int, str]] = None
 
 
+class CreateCameraRequest(BaseModel):
+    id: str
+    name: Optional[str] = None
+    ip: Optional[str] = ""
+    rtsp_url: Optional[str] = ""
+    status: Optional[str] = "active"
+    source: Optional[dict] = None
+    location: Optional[dict] = None
+    modules: Optional[dict] = None
+    address: Optional[str] = None
+    lat: Optional[Union[float, int, str]] = None
+    lng: Optional[Union[float, int, str]] = None
+
+
 class ToggleCameraRequest(BaseModel):
     status: Optional[str] = None
     enabled: Optional[bool] = None
@@ -921,6 +936,68 @@ def get_configured_cameras():
             logger.error("Failed to read cameras config from %s: %s", path, exc)
 
     return {"status": "success", "count": len(cams), "cameras": sanitize_camera_dict(cams)}
+
+
+@app.post("/api/cameras", dependencies=[Depends(verify_api_key)])
+def create_camera(req: CreateCameraRequest):
+    """Create and persist a new camera configuration into canonical YAML storage."""
+    camera_id = req.id.strip()
+    if not camera_id:
+        raise HTTPException(status_code=400, detail="Camera ID is required")
+
+    if req.rtsp_url:
+        clean_url = req.rtsp_url.strip()
+        if not validate_stream_url(clean_url):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid stream URL or destination address not permitted (SSRF protection)"
+            )
+
+    loc = dict(req.location) if isinstance(req.location, dict) else {}
+    if req.address is not None:
+        loc["address"] = req.address.strip()
+    if req.lat not in (None, ""):
+        try:
+            loc["lat"] = float(req.lat)
+        except (ValueError, TypeError):
+            pass
+    if req.lng not in (None, ""):
+        try:
+            loc["lng"] = float(req.lng)
+        except (ValueError, TypeError):
+            pass
+
+    cam_dict = {
+        "id": camera_id,
+        "name": req.name.strip() if req.name else camera_id,
+        "ip": req.ip.strip() if req.ip else "",
+        "rtsp_url": req.rtsp_url.strip() if req.rtsp_url else "",
+        "status": (req.status or "active").strip().lower(),
+    }
+    if req.source:
+        cam_dict["source"] = req.source
+    elif req.rtsp_url:
+        cam_dict["source"] = {"type": "direct", "url": req.rtsp_url.strip()}
+    if loc:
+        cam_dict["location"] = loc
+        if "address" in loc and "address" not in cam_dict:
+            cam_dict["address"] = loc["address"]
+        if "lat" in loc:
+            cam_dict["lat"] = loc["lat"]
+        if "lng" in loc:
+            cam_dict["lng"] = loc["lng"]
+    if req.modules:
+        cam_dict["modules"] = req.modules
+
+    upsert_camera_entry(cam_dict, settings.cameras_yaml_path)
+    upsert_camera_entry(cam_dict, settings.config_yaml_path)
+
+    logger.info("Camera %s created successfully in canonical configuration", camera_id)
+    return {
+        "status": "success",
+        "message": f"Camera {camera_id} created successfully",
+        "camera": sanitize_camera_dict([cam_dict])[0],
+    }
 
 
 @app.put("/api/cameras/{camera_id}", dependencies=[Depends(verify_api_key)])
@@ -982,6 +1059,12 @@ def update_camera(camera_id: str, req: UpdateCameraRequest):
     updated_cam = res1 or res2
     if not updated_cam:
         raise HTTPException(status_code=404, detail=f"Camera '{camera_id}' not found in configuration")
+
+    # Canonical configuration synchronization: ensure both YAML configs remain in lockstep
+    if res1 and not res2:
+        upsert_camera_entry(res1, settings.config_yaml_path)
+    elif res2 and not res1:
+        upsert_camera_entry(res2, settings.cameras_yaml_path)
 
     # If stream URL changed and preview connector is active for this camera, update connector
     if req.rtsp_url:

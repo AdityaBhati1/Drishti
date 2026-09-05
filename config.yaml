@@ -11,82 +11,22 @@ cameras:
     type: direct
     url: http://host.docker.internal:8085/video_feed
   address: BOP Alpha - Command Post
-- id: cam-slot-2
-  name: Vehicle Checkpost
-  rtsp_url: ''
-  status: inactive
-  location:
-    lat: 28.6145
-    lng: 77.2085
-    address: BOP Alpha - Vehicle Ingress Bay
-  modules:
-    intrusion:
-      enabled: true
-      tripwires:
-      - name: Checkpost Ingress Line
-        line:
-        - - 0.1
-          - 0.6
-        - - 0.9
-          - 0.6
-        direction: in
-    restricted_zone:
-      enabled: false
-    loitering:
-      enabled: true
-      loitering_seconds: 60
-      cooldown_seconds: 60
-    abandoned_object:
-      enabled: false
-    anpr:
-      enabled: true
-      confidence_threshold: 0.55
-    facial_recognition:
-      enabled: true
-      similarity_threshold: 0.7
-- id: border_cam_01
-  name: Northern Perimeter ONVIF Thermal
-  status: inactive
-  source:
-    type: onvif
-    host: 192.168.1.120
-    port: 80
-    username: ${ONVIF_USERNAME}
-    password: ${ONVIF_PASSWORD}
-  location:
-    lat: 28.615
-    lng: 77.2095
-    address: BOP Alpha - Forward Observation Thermal
-  modules:
-    intrusion:
-      enabled: false
-    restricted_zone:
-      enabled: false
-    loitering:
-      enabled: false
-    abandoned_object:
-      enabled: false
-    anpr:
-      enabled: false
-    facial_recognition:
-      enabled: false
-- id: CAM_02
+- id: CAM_03
   ip: 192.168.1.33
-  rtsp_url: rtsp://admin123:***@192.168.1.33:554/stream1
+  rtsp_url: rtsp://admin123:admin123@192.168.1.33:554/stream2
   status: active
-  name: UPTOWN_NODE
+  name: CAM_03
   source:
     type: direct
-    url: rtsp://admin123:***@192.168.1.33:554/stream1
-    username: admin123
-    password: admin123
-  location:
-    address: Fixed Node Slot 2
-    lat: 28.42852660021041
-    lng: 77.32831226963498
-  address: Fixed Node Slot 2
-  lat: 28.42852660021041
-  lng: 77.32831226963498
+    url: rtsp://admin123:admin123@192.168.1.33:554/stream2
+- id: cam03
+  ip: 192.168.1.33
+  rtsp_url: rtsp://admin123:admin123@192.168.1.33:554/stream1
+  status: active
+  name: cam03
+  source:
+    type: direct
+    url: rtsp://admin123:admin123@192.168.1.33:554/stream1
 watchlists:
   plates:
   - plate: UP16AB1234

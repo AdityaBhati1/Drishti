@@ -27,7 +27,10 @@ def append_camera_config(
     status: str = "active",
     source: dict | None = None,
     name: str = "",
+    location: dict | None = None,
+    modules: dict | None = None,
     config_path: str = "config.yaml",
+    **kwargs
 ):
     """
     Appends or updates a camera configuration inside config.yaml.
@@ -42,7 +45,7 @@ def append_camera_config(
     existing_idx = None
     existing_cam = {}
     for idx, cam in enumerate(config["cameras"]):
-        if cam.get("id") == camera_id or cam.get("camera_id") == camera_id:
+        if str(cam.get("id") or cam.get("camera_id") or "").strip().lower() == camera_id.strip().lower():
             existing_idx = idx
             existing_cam = cam
             break
@@ -60,12 +63,57 @@ def append_camera_config(
     if source:
         cam_entry["source"] = source
 
+    if location:
+        cam_entry["location"] = location
+        if "address" in location and "address" not in cam_entry:
+            cam_entry["address"] = location["address"]
+        if "lat" in location:
+            cam_entry["lat"] = location["lat"]
+        if "lng" in location:
+            cam_entry["lng"] = location["lng"]
+
+    if modules:
+        cam_entry["modules"] = modules
+
+    for k, v in kwargs.items():
+        if v is not None:
+            cam_entry[k] = v
+
     if existing_idx is not None:
         config["cameras"][existing_idx] = cam_entry
     else:
         config["cameras"].append(cam_entry)
 
     save_config(config, config_path)
+    return cam_entry
+
+
+def upsert_camera_entry(camera_dict: dict, config_path: str = "config.yaml") -> dict:
+    """
+    Inserts or updates an entire camera dictionary entry in config_path,
+    preserving order and avoiding duplicate entries.
+    """
+    config = load_config(config_path)
+    if "cameras" not in config or not isinstance(config["cameras"], list):
+        config["cameras"] = []
+
+    cid = str(camera_dict.get("id") or camera_dict.get("camera_id") or "").strip()
+    if not cid:
+        return camera_dict
+
+    idx = next(
+        (i for i, c in enumerate(config["cameras"])
+         if str(c.get("id") or c.get("camera_id") or "").strip().lower() == cid.lower()),
+        None
+    )
+    if idx is not None:
+        config["cameras"][idx] = dict(camera_dict)
+    else:
+        config["cameras"].append(dict(camera_dict))
+
+    save_config(config, config_path)
+    return camera_dict
+
 
 
 def update_camera_config(
